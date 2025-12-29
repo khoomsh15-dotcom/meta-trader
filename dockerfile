@@ -21,14 +21,18 @@ COPY . /app
 # 1. Copy the Venv (The Brain)
 COPY --from=builder /opt/venv /opt/venv
 
-# 2. CRITICAL FIX: Copy the Standard Library (The Dictionary)
-# This fixes "ModuleNotFoundError: No module named 'encodings'"
+# 2. Copy the Standard Library (The Dictionary)
 COPY --from=builder /usr/local/lib/python3.10 /usr/local/lib/python3.10
 
-# 3. Copy the Shared Object (The Blood)
+# 3. Copy the Python System Library (The Blood)
 COPY --from=builder /usr/local/lib/libpython3.10.so.1.0 /usr/lib/libpython3.10.so.1.0
 
-# 4. Run Script
+# 4. CRITICAL FIX: Copy SSL Security Libraries
+# This fixes "ImportError: libssl.so.1.1"
+COPY --from=builder /usr/lib/x86_64-linux-gnu/libssl.so.1.1 /usr/lib/libssl.so.1.1
+COPY --from=builder /usr/lib/x86_64-linux-gnu/libcrypto.so.1.1 /usr/lib/libcrypto.so.1.1
+
+# 5. Run Script
 RUN mkdir -p /etc/services.d/telegram-bot && \
     echo "#!/usr/bin/with-contenv bash" > /etc/services.d/telegram-bot/run && \
     echo "export LD_LIBRARY_PATH=/usr/lib:\$LD_LIBRARY_PATH" >> /etc/services.d/telegram-bot/run && \
