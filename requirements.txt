@@ -1,0 +1,6 @@
+python-telegram-bot[job-queue]
+pymongo
+pandas
+pandas-ta
+MetaTrader5
+python-dotenv
