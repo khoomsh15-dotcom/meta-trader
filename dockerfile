@@ -4,8 +4,8 @@ USER root
 WORKDIR /app
 COPY . /app
 
-# Install ONLY the essentials
-RUN pip3 install --no-cache-dir mt5linux python-telegram-bot
+# Install dependencies
+RUN pip3 install --no-cache-dir -r requirements.txt
 
-# Run the bot
+# Start the bot
 CMD ["python3", "bot.py"]
