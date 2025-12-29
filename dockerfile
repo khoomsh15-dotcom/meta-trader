@@ -1,14 +1,16 @@
 # ---------------------------------------------------------
-# STAGE 1: THE FACTORY (Standard Python Image)
-# This image works perfectly. We use it to download the files.
+# STAGE 1: THE HEAVY FACTORY (Full Python Image)
+# We changed 'slim' to the full version so it has ALL build tools.
 # ---------------------------------------------------------
-FROM python:3.10-slim AS factory
+FROM python:3.10 AS factory
 WORKDIR /build
 
-# 1. Download all dependencies into a folder called /wheels
-# Since this is a clean Linux, it will NOT fail.
+# 1. Update Pip to the latest version
 RUN pip install --upgrade pip
-RUN pip wheel --no-cache-dir --wheel-dir=/build/wheels \
+
+# 2. Download wheels (Binaries)
+# We use --prefer-binary to tell it: "Don't build if you don't have to."
+RUN pip wheel --no-cache-dir --wheel-dir=/build/wheels --prefer-binary \
     pandas \
     pandas-ta \
     numpy \
@@ -27,14 +29,14 @@ USER root
 WORKDIR /app
 COPY . /app
 
-# 2. "Smuggle" the files from the Factory to here
+# 3. "Smuggle" the files from the Factory to here
 COPY --from=factory /build/wheels /app/wheels
 
-# 3. Install from the local folder (Offline Mode)
-# We tell pip: "Don't go to the internet. Just use the files in /wheels"
+# 4. Install from the local folder (Offline Mode)
+# The --no-index flag forces it to use ONLY our smuggled files.
 RUN pip3 install --no-cache-dir --no-index --find-links=/app/wheels /app/wheels/*.whl
 
-# 4. Create the Service to run the bot
+# 5. Create the Service to run the bot
 RUN mkdir -p /etc/services.d/telegram-bot && \
     echo "#!/usr/bin/with-contenv bash" > /etc/services.d/telegram-bot/run && \
     echo "cd /app" >> /etc/services.d/telegram-bot/run && \
