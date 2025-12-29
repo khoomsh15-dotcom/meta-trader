@@ -7,6 +7,12 @@ ENV PATH="/opt/venv/bin:$PATH"
 
 # Install libraries
 RUN pip install --no-cache-dir --upgrade pip
+
+# 1. CRITICAL FIX: Install Numpy (The Missing Muscle)
+# We force binary to ensure it installs instantly without building.
+RUN pip install --no-cache-dir --only-binary=:all: numpy
+
+# 2. Install other libs
 RUN pip install --no-cache-dir --only-binary=:all: rpyc
 RUN pip install --no-cache-dir --no-deps mt5linux
 RUN pip install --no-cache-dir python-telegram-bot aiohttp
@@ -18,17 +24,16 @@ USER root
 WORKDIR /app
 COPY . /app
 
-# 1. Copy the Venv (The Brain)
+# 1. Copy the Venv
 COPY --from=builder /opt/venv /opt/venv
 
-# 2. Copy the Standard Library (The Dictionary)
+# 2. Copy the Standard Library
 COPY --from=builder /usr/local/lib/python3.10 /usr/local/lib/python3.10
 
-# 3. Copy the Python System Library (The Blood)
+# 3. Copy the System Library
 COPY --from=builder /usr/local/lib/libpython3.10.so.1.0 /usr/lib/libpython3.10.so.1.0
 
-# 4. CRITICAL FIX: Copy SSL Security Libraries
-# This fixes "ImportError: libssl.so.1.1"
+# 4. Copy SSL Security Libraries
 COPY --from=builder /usr/lib/x86_64-linux-gnu/libssl.so.1.1 /usr/lib/libssl.so.1.1
 COPY --from=builder /usr/lib/x86_64-linux-gnu/libcrypto.so.1.1 /usr/lib/libcrypto.so.1.1
 
