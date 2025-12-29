@@ -1,6 +1,7 @@
 import pandas as pd
 import pandas_ta as ta
-import MetaTrader5 as mt5
+from mt5linux import MetaTrader5
+mt5 = MetaTrader5()
 
 def get_smart_bias(symbol):
     rates = mt5.copy_rates_from_pos(symbol, mt5.TIMEFRAME_M1, 0, 100)
@@ -14,10 +15,9 @@ def get_smart_bias(symbol):
     last = df.iloc[-1]
     prev = df.iloc[-2]
 
-    # Buy: EMA 9 crosses above 21 + RSI > 50
+    # Bias Logic: Buy if EMA 9 crosses above 21 and RSI > 50
     if prev['ema_fast'] <= prev['ema_slow'] and last['ema_fast'] > last['ema_slow'] and last['rsi'] > 50:
         return mt5.ORDER_TYPE_BUY
-    # Sell: EMA 9 crosses below 21 + RSI < 50
     elif prev['ema_fast'] >= prev['ema_slow'] and last['ema_fast'] < last['ema_slow'] and last['rsi'] < 50:
         return mt5.ORDER_TYPE_SELL
     
