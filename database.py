@@ -22,6 +22,3 @@ def update_trade_settings(user_id, asset, lot, streak):
         {"user_id": user_id},
         {"$set": {"active_asset": asset, "base_lot": lot, "max_streak": streak, "is_running": True}}
     )
-
-def clear_user(user_id):
-    users_col.delete_one({"user_id": user_id})
