@@ -1,9 +1,14 @@
 import pandas as pd
 import pandas_ta as ta
 from mt5linux import MetaTrader5
-mt5 = MetaTrader5()
+
+# Connect to the MT5 bridge running on localhost:8001
+mt5 = MetaTrader5(host="localhost", port=8001)
 
 def get_smart_bias(symbol):
+    # Check connection
+    if not mt5.initialize(): return "WAIT"
+
     rates = mt5.copy_rates_from_pos(symbol, mt5.TIMEFRAME_M1, 0, 100)
     if rates is None: return "WAIT"
     
