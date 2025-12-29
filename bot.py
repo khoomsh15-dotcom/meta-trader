@@ -1,83 +1,58 @@
-import os
-import MetaTrader5 as mt5
+import logging
+import asyncio
 from telegram import Update
-from telegram.ext import Application, CommandHandler, MessageHandler, filters, ContextTypes, ConversationHandler
-import database as db
-import engine
+from telegram.ext import Application, CommandHandler, ContextTypes
+from mt5linux import MetaTrader5
+import strategy
 
-# States
-ID, PASS, SERVER, ASSET, LOT, STREAK = range(6)
+# ==========================================
+# 👇 ALL CREDENTIALS HARDCODED BELOW 👇
+# ==========================================
+BOT_TOKEN = "8550302715:AAFBuYXFZ9vlWJFqauyDvW954dyf-ZoOLSc"
+
+MT5_ID = 5044173857
+MT5_PASS = "BkAnX_E3"
+MT5_SERVER = "MetaQuotes-Demo"
+# ==========================================
+
+mt5 = MetaTrader5()
+logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', level=logging.INFO)
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text("😈 **Trading Bot OS Live**\n/setup - Link MT5\n/scalp - Start Engine\n/status - Check Trade\n/newsetup - Reset Account")
+    await update.message.reply_text(f"✅ Bot is ONLINE!\nConnected to: {MT5_SERVER}")
 
-async def setup_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text("🛠 Setup Mode: Enter your MT5 Login ID:")
-    return ID
-
-async def save_id(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    context.user_data['id'] = update.message.text
-    await update.message.reply_text("Enter MT5 Password:")
-    return PASS
-
-async def save_pass(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    context.user_data['pass'] = update.message.text
-    await update.message.reply_text("Enter MT5 Server Name:")
-    return SERVER
-
-async def save_server(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    user_id = update.effective_user.id
-    db.save_creds(user_id, context.user_data['id'], context.user_data['pass'], update.message.text)
-    await update.message.reply_text("✅ Credentials Saved! Now use /scalp to configure your trade.")
-    return ConversationHandler.END
-
-async def scalp_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text("💹 Enter Asset Name (e.g., XAUUSD):")
-    return ASSET
-
-async def set_asset(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    context.user_data['asset'] = update.message.text.upper()
-    await update.message.reply_text(f"Targeting {context.user_data['asset']}. Enter Starting Lot:")
-    return LOT
-
-async def set_lot(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    user_id = update.effective_user.id
-    db.update_trade_settings(user_id, context.user_data['asset'], float(update.message.text), 0)
+async def trade_loop(context: ContextTypes.DEFAULT_TYPE):
+    symbol = "XAUUSD"
     
-    # Run the Engine immediately for this user
-    user_data = db.get_user(user_id)
-    result = engine.run_martingale_cycle(user_data)
-    await update.message.reply_text(f"🔥 Engine Active: {result}")
-    return ConversationHandler.END
+    # 1. Connect
+    if not mt5.initialize(login=int(MT5_ID), password=MT5_PASS, server=MT5_SERVER):
+        print(f"❌ Connection Failed: {mt5.last_error()}")
+        return
+
+    # 2. Strategy Check
+    signal = strategy.get_smart_bias(symbol)
+    print(f"🔍 {symbol} Signal: {signal}")
+
+    # 3. Execute Trade
+    if signal in [mt5.ORDER_TYPE_BUY, mt5.ORDER_TYPE_SELL]:
+        price = mt5.symbol_info_tick(symbol).ask if signal == mt5.ORDER_TYPE_BUY else mt5.symbol_info_tick(symbol).bid
+        request = {
+            "action": mt5.TRADE_ACTION_DEAL,
+            "symbol": symbol,
+            "volume": 0.01,
+            "type": signal,
+            "price": price,
+            "type_filling": mt5.ORDER_FILLING_IOC,
+        }
+        result = mt5.order_send(request)
+        print(f"🚀 Trade Executed: {result}")
 
 def main():
-    token = os.getenv("TELEGRAM_TOKEN")
-    app = Application.builder().token(token).build()
-
-    # Conversation Handlers
-    setup_conv = ConversationHandler(
-        entry_points=[CommandHandler("setup", setup_start)],
-        states={
-            ID: [MessageHandler(filters.TEXT & ~filters.COMMAND, save_id)],
-            PASS: [MessageHandler(filters.TEXT & ~filters.COMMAND, save_pass)],
-            SERVER: [MessageHandler(filters.TEXT & ~filters.COMMAND, save_server)],
-        },
-        fallbacks=[CommandHandler("cancel", lambda u, c: ConversationHandler.END)]
-    )
-
-    scalp_conv = ConversationHandler(
-        entry_points=[CommandHandler("scalp", scalp_start)],
-        states={
-            ASSET: [MessageHandler(filters.TEXT & ~filters.COMMAND, set_asset)],
-            LOT: [MessageHandler(filters.TEXT & ~filters.COMMAND, set_lot)],
-        },
-        fallbacks=[CommandHandler("cancel", lambda u, c: ConversationHandler.END)]
-    )
-
+    print("🤖 Starting Bot...")
+    app = Application.builder().token(BOT_TOKEN).build()
     app.add_handler(CommandHandler("start", start))
-    app.add_handler(setup_conv)
-    app.add_handler(scalp_conv)
+    app.job_queue.run_repeating(trade_loop, interval=60, first=10)
     app.run_polling()
 
-if __name__ == "__main__":
+if __name__ == '__main__':
     main()
