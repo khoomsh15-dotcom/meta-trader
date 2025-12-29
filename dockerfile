@@ -1,13 +1,16 @@
+# Use the specialized MT5-Wine image
 FROM ghcr.io/gmag11/metatrader5-docker:latest
 
 USER root
 WORKDIR /app
 COPY . /app
 
-# Upgrade pip to be safe
-RUN pip3 install --no-cache-dir --upgrade pip
+# ---------------------------------------------------------
+# THE FIX: WE SKIPPED PIP UPGRADE.
+# WE INSTALL DIRECTLY USING THE EXISTING PIP.
+# ---------------------------------------------------------
 
-# Install the LITE requirements (No heavy Pandas)
+# Install the LITE requirements (No Pandas, No Heavy Libs)
 RUN pip3 install --no-cache-dir -r requirements.txt
 
 # Start the bot
