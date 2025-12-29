@@ -1,12 +1,10 @@
 import pandas as pd
 import pandas_ta as ta
 from mt5linux import MetaTrader5
-
-# Connect to the MT5 bridge running on localhost:8001
-mt5 = MetaTrader5(host="localhost", port=8001)
+mt5 = MetaTrader5()
 
 def get_smart_bias(symbol):
-    # Check connection
+    # Ensure connection
     if not mt5.initialize(): return "WAIT"
 
     rates = mt5.copy_rates_from_pos(symbol, mt5.TIMEFRAME_M1, 0, 100)
@@ -20,7 +18,7 @@ def get_smart_bias(symbol):
     last = df.iloc[-1]
     prev = df.iloc[-2]
 
-    # Bias Logic: Buy if EMA 9 crosses above 21 and RSI > 50
+    # Bias Logic
     if prev['ema_fast'] <= prev['ema_slow'] and last['ema_fast'] > last['ema_slow'] and last['rsi'] > 50:
         return mt5.ORDER_TYPE_BUY
     elif prev['ema_fast'] >= prev['ema_slow'] and last['ema_fast'] < last['ema_slow'] and last['rsi'] < 50:
