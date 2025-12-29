@@ -14,9 +14,10 @@ def get_smart_bias(symbol):
     last = df.iloc[-1]
     prev = df.iloc[-2]
 
-    # Crossover Logic
+    # Buy: EMA 9 crosses above 21 + RSI > 50
     if prev['ema_fast'] <= prev['ema_slow'] and last['ema_fast'] > last['ema_slow'] and last['rsi'] > 50:
         return mt5.ORDER_TYPE_BUY
+    # Sell: EMA 9 crosses below 21 + RSI < 50
     elif prev['ema_fast'] >= prev['ema_slow'] and last['ema_fast'] < last['ema_slow'] and last['rsi'] < 50:
         return mt5.ORDER_TYPE_SELL
     
