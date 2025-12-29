@@ -1,13 +1,12 @@
 import pandas as pd
 import pandas_ta as ta
+import MetaTrader5 as mt5
 
-def calculate_bias(df):
-    """
-    Returns: 'BUY', 'SELL', or 'WAIT'
-    Logic: EMA 9 crosses EMA 21 + RSI filter
-    """
-    if len(df) < 30: return "WAIT"
-
+def get_smart_bias(symbol):
+    rates = mt5.copy_rates_from_pos(symbol, mt5.TIMEFRAME_M1, 0, 100)
+    if rates is None: return "WAIT"
+    
+    df = pd.DataFrame(rates)
     df['ema_fast'] = ta.ema(df['close'], length=9)
     df['ema_slow'] = ta.ema(df['close'], length=21)
     df['rsi'] = ta.rsi(df['close'], length=14)
@@ -15,12 +14,10 @@ def calculate_bias(df):
     last = df.iloc[-1]
     prev = df.iloc[-2]
 
-    # Bullish Cross + RSI above 50
+    # Crossover Logic
     if prev['ema_fast'] <= prev['ema_slow'] and last['ema_fast'] > last['ema_slow'] and last['rsi'] > 50:
-        return "BUY"
+        return mt5.ORDER_TYPE_BUY
+    elif prev['ema_fast'] >= prev['ema_slow'] and last['ema_fast'] < last['ema_slow'] and last['rsi'] < 50:
+        return mt5.ORDER_TYPE_SELL
     
-    # Bearish Cross + RSI below 50
-    if prev['ema_fast'] >= prev['ema_slow'] and last['ema_fast'] < last['ema_slow'] and last['rsi'] < 50:
-        return "SELL"
-
     return "WAIT"
