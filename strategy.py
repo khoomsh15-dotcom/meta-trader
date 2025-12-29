@@ -1,65 +1,35 @@
-import os
-import logging
-import asyncio
-from telegram import Update
-from telegram.ext import Application, CommandHandler, ContextTypes
 from mt5linux import MetaTrader5
-import strategy
-
-# Load Token from Render Environment
-load_dotenv()
-BOT_TOKEN = os.getenv("BOT_TOKEN")
-
-# ==========================================
-# 👇 YOUR HARDCODED CREDENTIALS 👇
-# ==========================================
-MT5_ID = 5044173857           
-MT5_PASS = "BkAnX_E3"     
-MT5_SERVER = "MetaQuotes-Demo"     
-# ==========================================
-
 mt5 = MetaTrader5()
-logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', level=logging.INFO)
 
-async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text(f"✅ Bot Connected to {MT5_SERVER}!")
+def get_smart_bias(symbol):
+    # 1. Ensure connection
+    if not mt5.initialize(): 
+        return "WAIT"
 
-async def trade_loop(context: ContextTypes.DEFAULT_TYPE):
-    symbol = "XAUUSD" # Gold
+    # 2. Get 50 candles (Lightweight)
+    rates = mt5.copy_rates_from_pos(symbol, mt5.TIMEFRAME_M1, 0, 50)
+    if rates is None or len(rates) < 30: 
+        return "WAIT"
     
-    # 1. Connect using Hardcoded Details
-    if not mt5.initialize(login=int(MT5_ID), password=MT5_PASS, server=MT5_SERVER):
-        print(f"❌ Connection Failed: {mt5.last_error()}")
-        return
+    # 3. Simple List extraction (No Pandas)
+    close_prices = [x[4] for x in rates]
 
-    # 2. Get Signal from Lite Strategy
-    signal = strategy.get_smart_bias(symbol)
-    print(f"🔍 {symbol}: {signal}")
+    # 4. Calculate EMA 9 manually
+    k9 = 2 / (9 + 1)
+    ema9 = close_prices[0]
+    for p in close_prices: 
+        ema9 = (p - ema9) * k9 + ema9
 
-    # 3. Execute Trade
-    if signal in [mt5.ORDER_TYPE_BUY, mt5.ORDER_TYPE_SELL]:
-        price = mt5.symbol_info_tick(symbol).ask if signal == mt5.ORDER_TYPE_BUY else mt5.symbol_info_tick(symbol).bid
-        request = {
-            "action": mt5.TRADE_ACTION_DEAL,
-            "symbol": symbol,
-            "volume": 0.01,
-            "type": signal,
-            "price": price,
-            "type_filling": mt5.ORDER_FILLING_IOC,
-        }
-        result = mt5.order_send(request)
-        print(f"🚀 Trade Executed: {result}")
+    # 5. Calculate EMA 21 manually
+    k21 = 2 / (21 + 1)
+    ema21 = close_prices[0]
+    for p in close_prices: 
+        ema21 = (p - ema21) * k21 + ema21
 
-def main():
-    if not BOT_TOKEN:
-        print("CRITICAL: BOT_TOKEN not found in env!")
-        return
-        
-    print("🤖 Starting Bot...")
-    app = Application.builder().token(BOT_TOKEN).build()
-    app.add_handler(CommandHandler("start", start))
-    app.job_queue.run_repeating(trade_loop, interval=60, first=10)
-    app.run_polling()
-
-if __name__ == '__main__':
-    main()
+    # 6. Signal Logic
+    if ema9 > ema21:
+        return mt5.ORDER_TYPE_BUY
+    elif ema9 < ema21:
+        return mt5.ORDER_TYPE_SELL
+    
+    return "WAIT"
