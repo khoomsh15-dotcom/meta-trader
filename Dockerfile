@@ -1,18 +1,22 @@
-# Specialized Wine/MT5 image for Linux servers
+# Use the specialized MT5-Wine environment
 FROM ghcr.io/gmag11/metatrader5-docker:latest
 
 USER root
 
-# Fix for Exit Code 100: Adding retries and clearing cache
+# Bypassing the network lock with forced flags
 RUN apt-get clean && \
-    apt-get update --fix-missing && \
-    apt-get install -y --no-install-recommends python3-pip python3-setuptools && \
-    rm -rf /var/lib/apt/lists/*
+    DEBIAN_FRONTEND=noninteractive apt-get update -y --fix-missing && \
+    DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
+    python3-pip \
+    python3-setuptools \
+    && rm -rf /var/lib/apt/lists/*
 
-COPY . /app
 WORKDIR /app
+COPY . /app
 
-# Install Python dependencies
-RUN pip3 install --no-cache-dir -r requirements.txt
+# Upgrade pip and install the bot framework
+RUN pip3 install --upgrade pip && \
+    pip3 install --no-cache-dir -r requirements.txt
 
+# Start your Multi-User Bot OS
 CMD ["python3", "bot.py"]
