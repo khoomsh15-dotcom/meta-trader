@@ -5,14 +5,17 @@ USER root
 WORKDIR /app
 COPY . /app
 
-# STEP 1: Upgrade Pip internally (No internet update needed)
-RUN python3 -m pip install --upgrade pip
+# ---------------------------------------------------
+# THE NUCLEAR FIX:
+# NO APT UPDATE. NO PIP UPGRADE.
+# JUST INSTALL THE LIBRARIES DIRECTLY.
+# ---------------------------------------------------
 
-# STEP 2: Install Pandas as a BINARY only (The Magic Fix)
-# We force it to use a pre-built file so we don't need the broken 'gcc' tools
+# 1. Install Pandas & Numpy as BINARIES (Pre-built)
+# We skip the 'upgrade pip' step that was crashing your build.
 RUN pip3 install --no-cache-dir --only-binary=:all: pandas numpy
 
-# STEP 3: Install the rest of your bot
+# 2. Install the rest of the libraries
 RUN pip3 install --no-cache-dir \
     python-telegram-bot[job-queue] \
     pymongo[srv] \
@@ -20,7 +23,7 @@ RUN pip3 install --no-cache-dir \
     python-dotenv \
     mt5linux
 
-# STEP 4: Start the Bot Service
+# 3. Setup the bot service to run alongside MT5
 RUN mkdir -p /etc/services.d/telegram-bot && \
     echo "#!/usr/bin/with-contenv bash" > /etc/services.d/telegram-bot/run && \
     echo "cd /app" >> /etc/services.d/telegram-bot/run && \
