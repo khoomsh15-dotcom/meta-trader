@@ -5,8 +5,15 @@ USER root
 WORKDIR /app
 COPY . /app
 
-# Install dependencies (Linux compatible)
-RUN pip3 install --no-cache-dir -r requirements.txt
+# CHEAT CODE: Hum requirements.txt ko ignore kar rahe hain.
+# Hum seedha yahan packages install karenge taaki koi galti na ho.
+RUN pip3 install --no-cache-dir \
+    python-telegram-bot[job-queue] \
+    pymongo[srv] \
+    pandas \
+    pandas-ta \
+    python-dotenv \
+    mt5linux
 
 # Create a service to auto-start the bot
 RUN mkdir -p /etc/services.d/telegram-bot && \
