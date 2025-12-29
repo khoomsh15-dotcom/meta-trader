@@ -1,4 +1,2 @@
-python-telegram-bot[job-queue]
-pymongo[srv]
-python-dotenv
 mt5linux
+python-telegram-bot
