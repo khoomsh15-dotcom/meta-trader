@@ -1,10 +1,10 @@
 # ---------------------------------------------------------
-# STAGE 1: THE CLEAN INSTALLER (Standard Python)
-# We use a virtual environment to install packages safely.
+# STAGE 1: THE CLEAN BUILDER (Low Memory Mode)
+# We use a standard Python image to prepare the environment safely.
 # ---------------------------------------------------------
 FROM python:3.10-slim AS builder
 
-# 1. Create a virtual environment (Sandbox)
+# 1. Create a "Virtual Environment" (Sandbox)
 RUN python -m venv /opt/venv
 # Activate the sandbox
 ENV PATH="/opt/venv/bin:$PATH"
@@ -12,9 +12,12 @@ ENV PATH="/opt/venv/bin:$PATH"
 # 2. Upgrade pip inside the sandbox
 RUN pip install --upgrade pip
 
-# 3. Install packages directly into the sandbox
-# We use --only-binary for heavy math libs to stop the build from crashing
+# 3. INSTALL STEP A: HEAVY LIBRARIES (Binary Only)
+# We force binary to prevent RAM spikes that crash Render.
 RUN pip install --no-cache-dir --only-binary=:all: pandas numpy
+
+# 4. INSTALL STEP B: LIGHT LIBRARIES
+# We install these separately to keep the build stable.
 RUN pip install --no-cache-dir \
     python-telegram-bot[job-queue] \
     pymongo[srv] \
@@ -32,13 +35,13 @@ USER root
 WORKDIR /app
 COPY . /app
 
-# 4. COPY the entire Sandbox folder from Stage 1
+# 5. COPY the entire Sandbox folder from Stage 1
 COPY --from=builder /opt/venv /opt/venv
 
-# 5. Tell the system to use our Sandbox Python
+# 6. Tell the system to use our Sandbox Python
 ENV PATH="/opt/venv/bin:$PATH"
 
-# 6. Start the bot using the Sandbox Python
+# 7. Start the bot using the Sandbox Python
 RUN mkdir -p /etc/services.d/telegram-bot && \
     echo "#!/usr/bin/with-contenv bash" > /etc/services.d/telegram-bot/run && \
     echo "cd /app" >> /etc/services.d/telegram-bot/run && \
