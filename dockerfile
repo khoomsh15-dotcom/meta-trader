@@ -5,24 +5,22 @@ USER root
 WORKDIR /app
 COPY . /app
 
-# STEP 1: Fix Network & Install Builders (Crucial for Pandas)
-# We use '|| true' to prevent the build from crashing if update server is slow
-RUN apt-get update || true
-RUN apt-get install -y build-essential python3-dev gcc
+# STEP 1: Upgrade Pip internally (No internet update needed)
+RUN python3 -m pip install --upgrade pip
 
-# STEP 2: Upgrade Pip (Solves 'Failed to build wheel' errors)
-RUN pip3 install --upgrade pip setuptools wheel
+# STEP 2: Install Pandas as a BINARY only (The Magic Fix)
+# We force it to use a pre-built file so we don't need the broken 'gcc' tools
+RUN pip3 install --no-cache-dir --only-binary=:all: pandas numpy
 
-# STEP 3: Install Your Packages (Directly here, no requirements.txt needed)
+# STEP 3: Install the rest of your bot
 RUN pip3 install --no-cache-dir \
     python-telegram-bot[job-queue] \
     pymongo[srv] \
-    pandas \
     pandas-ta \
     python-dotenv \
     mt5linux
 
-# STEP 4: Start the Bot automatically with MT5
+# STEP 4: Start the Bot Service
 RUN mkdir -p /etc/services.d/telegram-bot && \
     echo "#!/usr/bin/with-contenv bash" > /etc/services.d/telegram-bot/run && \
     echo "cd /app" >> /etc/services.d/telegram-bot/run && \
