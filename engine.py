@@ -1,11 +1,11 @@
 from mt5linux import MetaTrader5
 import strategy
 
-# Connect to the bridge
-mt5 = MetaTrader5(host="localhost", port=8001)
+# Connect to the local bridge
+mt5 = MetaTrader5()
 
 def run_martingale_cycle(user_data):
-    # Authenticate with the User's credentials
+    # Initialize connection
     if not mt5.initialize(login=int(user_data['mt5_id']), password=user_data['mt5_pass'], server=user_data['mt5_server']):
         return "Conn Error"
 
@@ -36,5 +36,4 @@ def run_martingale_cycle(user_data):
     }
     
     result = mt5.order_send(request)
-    if result is None: return "Order Send Failed"
     return f"🚀 {symbol} Trade: {current_lot} lots"
