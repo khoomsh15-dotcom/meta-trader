@@ -1,12 +1,12 @@
-# -----------------------------------------------------------------
-# STAGE 1: THE BUILDER (The "Clean Kitchen")
-# We use a healthy Python system to download and prepare everything.
-# -----------------------------------------------------------------
-FROM python:3.10-slim AS builder
+# ---------------------------------------------------------
+# STAGE 1: THE FACTORY (Standard Python Image)
+# This image works perfectly. We use it to download the files.
+# ---------------------------------------------------------
+FROM python:3.10-slim AS factory
 WORKDIR /build
 
-# 1. Download libraries into a folder called /wheels
-# This happens in a clean environment, so it WON'T fail.
+# 1. Download all dependencies into a folder called /wheels
+# Since this is a clean Linux, it will NOT fail.
 RUN pip install --upgrade pip
 RUN pip wheel --no-cache-dir --wheel-dir=/build/wheels \
     pandas \
@@ -17,23 +17,24 @@ RUN pip wheel --no-cache-dir --wheel-dir=/build/wheels \
     python-dotenv \
     mt5linux
 
-# -----------------------------------------------------------------
-# STAGE 2: THE RUNNER (The "MT5 Room")
-# Now we switch to the MT5 image and just copy the files over.
-# -----------------------------------------------------------------
+# ---------------------------------------------------------
+# STAGE 2: THE DESTINATION (The MT5 Image)
+# We switch to the restricted image but we DON'T download anything.
+# ---------------------------------------------------------
 FROM ghcr.io/gmag11/metatrader5-docker:latest
 
 USER root
 WORKDIR /app
 COPY . /app
 
-# 2. Copy the pre-made files from the Builder stage
-COPY --from=builder /build/wheels /app/wheels
+# 2. "Smuggle" the files from the Factory to here
+COPY --from=factory /build/wheels /app/wheels
 
-# 3. Install from the local folder (No internet download needed here!)
+# 3. Install from the local folder (Offline Mode)
+# We tell pip: "Don't go to the internet. Just use the files in /wheels"
 RUN pip3 install --no-cache-dir --no-index --find-links=/app/wheels /app/wheels/*.whl
 
-# 4. Setup the bot service
+# 4. Create the Service to run the bot
 RUN mkdir -p /etc/services.d/telegram-bot && \
     echo "#!/usr/bin/with-contenv bash" > /etc/services.d/telegram-bot/run && \
     echo "cd /app" >> /etc/services.d/telegram-bot/run && \
